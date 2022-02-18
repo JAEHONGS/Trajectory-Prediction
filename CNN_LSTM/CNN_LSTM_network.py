@@ -20,102 +20,91 @@ from tensorflow.keras import layers
 from tensorflow.keras.models import Model
 from tensorflow.keras.utils import plot_model
 
-from sklearn.model_selection import train_test_split
 
-file_name = 'batch_train_data1'
-file_name1 = 'batch_label_data1'
+train_file_name = 'batch_train_data1'
+train_label_file_name = 'batch_train_label_data1'
+test_file_name = 'batch_test_data1'
+test_label_file_name = 'batch_test_label_data1'
 
-cnn_data = np.load('C:/Users/user/.spyder-py3/CNN_LSTM/data/train/{}.npy'.format(file_name))
-cnn_data_label = np.load('C:/Users/user/.spyder-py3/CNN_LSTM/data/train/{}.npy'.format(file_name1))
+CL_train = np.load('C:/Users/user/.spyder-py3/CNN_LSTM/data/train/{}.npy'.format(train_file_name))
+CL_train_label = np.load('C:/Users/user/.spyder-py3/CNN_LSTM/data/train/{}.npy'.format(train_label_file_name))
 
-from sklearn.preprocessing import MinMaxScaler
+CL_test = np.load('C:/Users/user/.spyder-py3/CNN_LSTM/data/test/{}.npy'.format(test_file_name))
+CL_test_label = np.load('C:/Users/user/.spyder-py3/CNN_LSTM/data/test/{}.npy'.format(test_label_file_name))
 
-scalers = {}
 
-for i in range(cnn_data.shape[0]):
-    for j in range(cnn_data.shape[3]):
-        scalers[j] = MinMaxScaler()
-        cnn_data[i, :,:, j] = scalers[j].fit_transform(cnn_data[i, :, :, j])
-
-for i in range(cnn_data_label.shape[0]):
-    scalers[i] = MinMaxScaler()
-    cnn_data_label[i, :,:] = scalers[i].fit_transform(cnn_data_label[i, :, :])
-
-# cnn_data[:, :, :, 0:2] = cnn_data[:, :, :, 0:2] / 255
-# cnn_data_label = cnn_data_label / 255
-
-CL_train, CL_test, CL_train_label, CL_test_label = train_test_split(cnn_data, cnn_data_label, test_size = 0.2, shuffle = True)
 
 map_img_frame_ = (310,1000,4)
 
 input_data_1 = layers.Input(shape=map_img_frame_, name = 'map_img_')
 
-inner_cnn_rnn_ = layers.Conv2D(1,(3, 3), padding = 'same', name = 'conv1', kernel_initializer='he_normal')(input_data_1)
-# inner_cnn_rnn_ = layers.Conv2D(1,(10,10), padding = 'same', name = 'conv1', kernel_initializer='he_normal')(input_data_1)
-inner_cnn_rnn_ = layers.BatchNormalization()(inner_cnn_rnn_)
-inner_cnn_rnn_ = layers.Activation('relu')(inner_cnn_rnn_)
-# inner_cnn_rnn_ = layers.MaxPooling2D(pool_size=(2,2), name='max1')(inner_cnn_rnn_)
-
-inner_cnn_rnn_ = layers.Conv2D(1,(3, 3), padding = 'same', name = 'conv2', kernel_initializer='he_normal')(inner_cnn_rnn_)
-# inner_cnn_rnn_ = layers.Conv2D(1,(10,10), padding = 'same', name = 'conv2', kernel_initializer='he_normal')(input_data_1)
+inner_cnn_rnn_ = layers.Conv2D(8,(2, 2), padding = 'same', name = 'conv1')(input_data_1)
 # inner_cnn_rnn_ = layers.BatchNormalization()(inner_cnn_rnn_)
-inner_cnn_rnn_ = layers.Activation('relu')(inner_cnn_rnn_)
+inner_cnn_rnn_ = layers.Activation('relu', name = 'act1')(inner_cnn_rnn_)
+# inner_cnn_rnn_ = layers.MaxPooling2D(pool_size=(2,2), strides=(1, 1), padding ='same', name='max1')(inner_cnn_rnn_)
+
+inner_cnn_rnn_ = layers.Conv2D(4,(2, 2), padding = 'same', name = 'conv2')(inner_cnn_rnn_)
+inner_cnn_rnn_ = layers.Activation('relu', name = 'act2')(inner_cnn_rnn_)
+# inner_cnn_rnn_ = layers.MaxPooling2D(pool_size=(2,2), strides=(1, 1), padding ='same', name='max2')(inner_cnn_rnn_)
+
+inner_cnn_rnn_ = layers.Conv2D(1,(2, 2), padding = 'same', name = 'conv3')(inner_cnn_rnn_)
+inner_cnn_rnn_ = layers.Activation('relu', name = 'act3')(inner_cnn_rnn_)
+# inner_cnn_rnn_ = layers.MaxPooling2D(pool_size=(2,2), strides=(1, 1), padding ='same', name='max3')(inner_cnn_rnn_)
+
+# inner_cnn_rnn_ = layers.Conv2D(2,(2, 2), padding = 'same', name = 'conv4')(inner_cnn_rnn_)
+# inner_cnn_rnn_ = layers.Activation('relu', name = 'act4')(inner_cnn_rnn_)
+# inner_cnn_rnn_ = layers.MaxPooling2D(pool_size=(2,2), strides=(1, 1), padding ='same', name='max4')(inner_cnn_rnn_)
+
+# inner_cnn_rnn_ = layers.Conv2D(1,(2, 2), padding = 'same', name = 'conv5')(inner_cnn_rnn_)
+# inner_cnn_rnn_ = layers.Activation('relu', name = 'act5')(inner_cnn_rnn_)
+# inner_cnn_rnn_ = layers.MaxPooling2D(pool_size=(2,2), strides=(1, 1), padding ='same', name='max5')(inner_cnn_rnn_)
 
 ##시간순으로 학습
-# inner_cnn_rnn_ = layers.Permute(dims=(3, 2, 1))(inner_cnn_rnn_)
-inner_cnn_rnn_ = layers.Reshape(target_shape=((310,1000)), name='reshape')(inner_cnn_rnn_)
-# inner_cnn_rnn_ = layers.Reshape(target_shape=((500,154)), name='reshape')(inner_cnn_rnn_)
-
+# # inner_cnn_rnn_ = layers.Permute(dims=(3, 2, 1))(inner_cnn_rnn_)
+inner_cnn_rnn_ = layers.Reshape(target_shape=((1000,310)), name='reshape1')(inner_cnn_rnn_)
+# inner_cnn_rnn_ = layers.Reshape(target_shape=((310,1000)), name='reshape1')(inner_cnn_rnn_)
 
 inner_cnn_rnn_ = layers.LSTM(64, return_sequences = True, name='lstm1')(inner_cnn_rnn_)
-inner_cnn_rnn_ = layers.LSTM(64, return_sequences = True, name='lstm2')(inner_cnn_rnn_)
-# inner_cnn_rnn_ = layers.LSTM(64, name='lstm2')(inner_cnn_rnn_)
-# inner_cnn_rnn_ = layers.Bidirectional(layers.LSTM(64, return_sequences=True), name='lstm2')(inner_cnn_rnn_)
-
-## 64 STEPS을 예측
-inner_cnn_rnn_ = layers.Dense(1000, activation='relu',kernel_initializer='he_normal',name='dense1')(inner_cnn_rnn_)
+inner_cnn_rnn_ = layers.Bidirectional(layers.LSTM(64, return_sequences=True), name='lstm2')(inner_cnn_rnn_)
+inner_cnn_rnn_ = layers.Dense(310, activation='relu', kernel_initializer='he_normal', name='dense1')(inner_cnn_rnn_)
+inner_cnn_rnn_ = layers.Reshape(target_shape=((310, 1000)), name='reshape2')(inner_cnn_rnn_)
 
 modelCR = Model(inputs=input_data_1, outputs=inner_cnn_rnn_)
 
 # ============================================================================
 
-# result = layers.concatenate([modelCR.output, y.output])
-
-# result_rnn_layer_ = layers.LSTM(128, return_sequences = True, name='lstm5')(result)
-# result_rnn_layer_ = layers.Bidirectional(layers.LSTM(128, return_sequences=True), name='lstm6')(result_rnn_layer_)
-# z = layers.Dense(64, activation="relu")(result_rnn_layer_)
-
-# modelfinal = Model(inputs=[modelCR.input, y.input], outputs=z)
-
-# modelfinal.summary()
-# modelCR.summary()
-
-# modelfinal.compile(
-#     loss=keras.losses.binary_crossentropy,
-#     # loss=keras.losses.MeanSquaredError(),
-#     optimizer=keras.optimizers.Adam(),
-# )
-
 modelCR.compile(
-    #loss=keras.losses.binary_crossentropy,
     loss=keras.losses.MeanSquaredError(),
     optimizer=keras.optimizers.Adam(),
     metrics=['accuracy'],
 )
 
-early_stopping = keras.callbacks.EarlyStopping(monitor="val_accuracy", patience=50)
+epoch = 1500
+batch_size = 8
+st = '(3)'
+
+checkpoint_path = './CNN_LSTM/Model/CNN_LSTM/best/save/%d_EP%d_BS%d%s_best_{epoch:02d}-{loss:.5f}.h5'%(len(CL_train), epoch, batch_size, st)
+
+early_stopping = keras.callbacks.EarlyStopping(monitor="loss", patience=30)
 # reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor="val_loss", patience=10)
-# mc = keras.callbacks.ModelCheckpoint('./CNN_LSTM/Model/CNN_LSTM/{epoch:02d}-{val_accuracy:.5f}_100_best.h5', monitor='accuracy', save_best_only=True)
+
+mc = keras.callbacks.ModelCheckpoint(
+    filepath = checkpoint_path,
+    monitor='loss',
+    save_best_only=True
+)
 
 history = modelCR.fit(
     CL_train,
     CL_train_label,
-    batch_size=2,
-    epochs=500,
-    validation_split=0.2,
-    callbacks=[early_stopping],
+    batch_size=batch_size,
+    epochs=epoch,
+    validation_split=0.3,
+    shuffle=True,
+    # callbacks=[early_stopping],
+    # callbacks=[early_stopping, mc],
     # callbacks=[early_stopping, reduce_lr],
-    # callbacks=[mc],
+    callbacks=[mc],
 )
 
 plt.figure(figsize=(15, 10))
@@ -132,10 +121,34 @@ plt.xlabel('Epochs')
 plt.grid()
 plt.legend()
 
-modelCR.save('./CNN_LSTM/Model/CNN_LSTM/CNN_LSTM_model_100_EP500_BS2_new_structure(3).h5')
-
 modelCR.summary()
-
 modelCR.evaluate(CL_test, CL_test_label)
 
+modelCR.save('./CNN_LSTM/Model/CNN_LSTM/CNN_LSTM_model_%d_EP%d_BS%d%s.h5'%(len(CL_train), epoch, batch_size, st))
+plot_model(modelCR, to_file='./CNN_LSTM/Model/CNN_LSTM/model_plot/plot_%d_EP%d_BS%d%s.h5.png'%(len(CL_train), epoch, batch_size, st), show_shapes=True)
+plt.savefig('./CNN_LSTM/Model/CNN_LSTM/loss_plot/%d_%d_%d%s.h5.png'%(len(CL_train), epoch, batch_size, st), dpi=300)
+
 t.toc()
+
+
+
+
+
+# from sklearn.preprocessing import MinMaxScaler
+
+# scalers1 = {}
+# scalers2 = {}
+
+# for i in range(CL_train.shape[0]):
+#     scalers1[i] = MinMaxScaler()
+#     CL_train_label[i, :,:] = scalers1[i].fit_transform(CL_train_label[i, :, :])
+    
+#     for j in range(CL_train.shape[3] - 2):
+#         CL_train[i, :,:, j] = scalers1[i].fit_transform(CL_train[i, :, :, j])
+
+# for i in range(CL_test.shape[0]):
+#     scalers2[i] = MinMaxScaler()
+#     CL_test_label[i, :,:] = scalers2[i].fit_transform(CL_test_label[i, :, :])
+    
+#     for j in range(CL_train.shape[3] - 2):
+#         CL_test[i, :,:, j] = scalers2[i].fit_transform(CL_test[i, :, :, j])
