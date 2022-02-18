@@ -9,8 +9,7 @@ import numpy as np
 from numpy.random import uniform
 from scipy import stats
 
-np.set_printoptions(threshold=3)
-np.set_printoptions(suppress=True)
+np.set_printoptions(threshold=5, suppress=True)
 
 class Particle_filter():
     
@@ -21,7 +20,7 @@ class Particle_filter():
         self.init_th = 0.01
         
 
-    def calculate_heading(v, w, dt=1.):
+    def calculate_heading(self,v, w, dt=0.2):
         
         global previous_x
         global previous_y
@@ -46,20 +45,23 @@ class Particle_filter():
             
             return heading, distance, u
     
-    def create_uniform_particles(x_range, y_range, N):
+    def create_uniform_particles(self,x_range, y_range, N,initial_pose_x,initial_pose_y):
+        
         particles = np.empty((N, 2))
-        particles[:, 0] = uniform(x_range[0], x_range[1], size=N)
-        particles[:, 1] = uniform(y_range[0], y_range[1], size=N)
+        particles[:, 0] = uniform(x_range[0], x_range[1], size=N) + initial_pose_x
+        particles[:, 1] = uniform(y_range[0], y_range[1], size=N) + initial_pose_y
         
         return particles
     
-    def predict(particles, u, std, dt=1.):
+    def predict(self,particles, u, std, dt=0.2):
         N = len(particles)
         dist = (u[1]) + (np.random.randn(N) * std[1]) ## radius
         particles[:, 0] += np.cos(u[0]) * dist
         particles[:, 1] += np.sin(u[0]) * dist
         
-    def update(particles, weights, landmarks , landmark_prob):
+        # print(u[0])
+        
+    def update(self,particles, weights, landmarks , landmark_prob):
         weights.fill(1.)
         
         for i, landmark in enumerate(landmarks):
@@ -95,10 +97,10 @@ class Particle_filter():
         return weights
     
     
-    def neff(weights):
+    def neff(self,weights):
         return 1. / np.sum(np.square(weights))    
     
-    def systematic_resample(weights):
+    def systematic_resample(self,weights):
         N = len(weights)
         positions = (np.arange(N) + np.random.random()) / N
      
@@ -115,58 +117,204 @@ class Particle_filter():
                 
         return indexes
     
-    def estimate(particles, weights):
+    def estimate(self,particles, weights):
         pos = particles[:, 0:1]
         mean = np.average(pos, weights=weights, axis=0)
         var = np.average((pos - mean)**2, weights=weights, axis=0)
         
         return mean, var
     
-    def resample_from_index(particles, weights, indexes):
+    def resample_from_index(self,particles, weights, indexes):
         particles[:] = particles[indexes]
         weights[:] = weights[indexes]
         weights /= np.sum(weights)
+        
+        return particles, weights
     
     
 if __name__ == "__main__" :
     
     pf = Particle_filter()
+
+
+    final_output = np.load('C:/Users/user/.spyder-py3/CNN_LSTM/data/final_output.npy')
+    final_vw = np.load('C:/Users/user/.spyder-py3/CNN_LSTM/data/final_vw.npy')
     
-    x_range=np.array([0,800])
-    y_range=np.array([0,600])
+    final_vw[:, :, 0] = final_vw[:, :, 0] * 20
+    
+    test_label_file_name = 'batch_test_label_data2'
+    vel_test_label = np.load('C:/Users/user/.spyder-py3/CNN_LSTM/data/test/{}.npy'.format(test_label_file_name))
+    num = 10
+    
+    b = final_output[num].copy()
+    a = final_vw[num].copy()
+    c = final_output[num].copy()
+
+    
+    b_shape = b.shape
+
+    prob_position = np.zeros([1,2])
+    prob_p = np.zeros([1,1])
+    
+
+    b_max = np.max(b)
+    b_min = np.min(b)
+
+
+    b = (b-b_min)/(b_max-b_min)
+
+    count = 0
+
+    for i in range(0,b_shape[0]):
+  
+        for j in range(0,b_shape[1]):
+
+    
+
+            if b[i, j] > 0.3 :
+
+                if count == 0 :
+        
+                    prob_position = prob_position + np.array([i,j])
+                    prob_p = prob_p + b[i, j]
+
+                else:
+                    prob_position = np.vstack((prob_position,np.array([i,j])))
+                    prob_p = np.vstack((prob_p,b[i, j]))
+
+            count = count + 1
+    
+    x_range=np.array([-75,75])
+    y_range=np.array([-75,75])
     
     std=np.array([2,4])
     
-    ###
-    example_velocity = 0.2
-    example_angle_velocity = 0.01
-    initial_pose_x = 2
-    initial_pose_y = 3
-    landmarks=np.array([ [144,73], [410,13], [336,175], [718,159], [178,484], [665,464]  ])
-    landmark_prob = np.array([ [0.2], [0.2], [0.2], [0.2], [0.2], [0.2]])
-    ######
+    # ###
+    example_velocity = a[0, 0]
+    example_angle_velocity = a[0, 1]
+    initial_pose_x = 141
+    initial_pose_y = 656
+    landmarks=prob_position
+    landmark_prob = prob_p
+    # ######
     
     
-    N=400
+    predict_trajectory = np.array([[initial_pose_x,initial_pose_y]])
+    
+    N=300
 
     NL = len(landmarks)
     
-    particles= pf.create_uniform_particles(x_range, y_range, N)
+    particles= pf.create_uniform_particles(x_range, y_range, N,initial_pose_x,initial_pose_y)
     
     
     
     weights = np.array([1.0]*N)
     
-    # while(1):
-    for i in range(1):
-        heading, distance, u = pf.calculate_heading(example_velocity,example_angle_velocity,dt=1.)
+    # # # while(1):
+    for i in range(16):
+        heading, distance, u = pf.calculate_heading(a[i, 0],a[i, 1],dt=0.2)
         
         u=np.array([heading,distance])
-        pf.predict(particles, u, std, dt=1.)
+        pf.predict(particles, u, std, dt=0.2)
         
         weights = pf.update(particles, weights, landmarks=landmarks, landmark_prob =landmark_prob )
         indexes = pf.systematic_resample(weights)
-        pf.resample_from_index(particles, weights, indexes)
+        particles, weights = pf.resample_from_index(particles, weights, indexes)
         
-        previous_x=initial_pose_x
-        previous_y=initial_pose_y
+        max_weights = np.argmax(weights)
+        previous_x = particles[max_weights][0]
+        previous_y = particles[max_weights][1]
+        
+        predict_trajectory = np.vstack((predict_trajectory,np.array([previous_x,previous_y])))
+    
+    # for num in range(22):
+        # b = final_output[num].copy()
+        # a = final_vw[num].copy()
+        # c = final_output[num].copy()
+    
+        
+        # b_shape = b.shape
+    
+        # prob_position = np.zeros([1,2])
+        # prob_p = np.zeros([1,1])
+        
+    
+        # b_max = np.max(b)
+        # b_min = np.min(b)
+    
+    
+        # b = (b-b_min)/(b_max-b_min)
+    
+        # count = 0
+    
+        # for i in range(0,b_shape[0]):
+      
+        #     for j in range(0,b_shape[1]):
+    
+        
+    
+        #         if b[i][j] > 0.3 :
+    
+        #             if count == 0 :
+            
+        #                 prob_position = prob_position + np.array([i,j])
+        #                 prob_p = prob_p + b[i][j]
+    
+        #             else:
+        #                 prob_position = np.vstack((prob_position,np.array([i,j])))
+        #                 prob_p = np.vstack((prob_p,b[i][j]))
+    
+        #         count = count + 1
+        
+        # x_range=np.array([-25,25])
+        # y_range=np.array([-25,25])
+        
+        # std=np.array([2,4])
+        
+        # # ###
+        # example_velocity = a[0][0]
+        # example_angle_velocity = a[0][1]
+        # initial_pose_x = 155
+        # initial_pose_y = 656
+        # landmarks=prob_position
+        # landmark_prob = prob_p
+        # # ######
+        
+        
+        # predict_trajectory = np.array([[initial_pose_x,initial_pose_y]])
+        
+        # N=300
+    
+        # NL = len(landmarks)
+        
+        # particles= pf.create_uniform_particles(x_range, y_range, N,initial_pose_x,initial_pose_y)
+        
+        
+        
+        # weights = np.array([1.0]*N)
+        
+        # # # # while(1):
+        # for i in range(16):
+        #     heading, distance, u = pf.calculate_heading(a[i, 0],a[i, 1],dt=0.2)
+            
+        #     u=np.array([heading,distance])
+        #     pf.predict(particles, u, std, dt=1.)
+            
+        #     weights = pf.update(particles, weights, landmarks=landmarks, landmark_prob =landmark_prob )
+        #     indexes = pf.systematic_resample(weights)
+        #     particles, weights = pf.resample_from_index(particles, weights, indexes)
+            
+        #     max_weights = np.argmax(weights)
+        #     previous_x = particles[max_weights][0]
+        #     previous_y = particles[max_weights][1]
+            
+        #     predict_trajectory = np.vstack((predict_trajectory,np.array([previous_x,previous_y])))
+            
+            # previous_x=initial_pose_x
+            # previous_y=initial_pose_y
+            
+        # np.save('./CNN_LSTM/data/test/pf_predict_trajectory%d'%num, predict_trajectory)
+        
+        
+
