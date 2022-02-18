@@ -1,0 +1,117 @@
+from pytictoc import TicToc
+
+t = TicToc()
+
+t.tic()
+
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+
+from tensorflow import keras
+
+
+
+file_name = 'batch_train_data_final1'
+
+train_file_name1 = 'batch_train_data1'
+train_label_file_name1 = 'batch_train_label_data1'
+
+batch_train_data1 = np.load('C:/Users/user/.spyder-py3/CNN_LSTM/data/train/{}.npy'.format(train_file_name1))
+batch_train_label_data1 = np.load('C:/Users/user/.spyder-py3/CNN_LSTM/data/train/{}.npy'.format(train_label_file_name1))
+
+train_file_name2 = 'batch_train_data2'
+train_label_file_name2 = 'batch_train_label_data2'
+
+batch_train_data2 = np.load('C:/Users/user/.spyder-py3/CNN_LSTM/data/train/{}.npy'.format(train_file_name2))
+batch_train_label_data2 = np.load('C:/Users/user/.spyder-py3/CNN_LSTM/data/train/{}.npy'.format(train_label_file_name2))
+
+num = len(batch_train_data1)
+data_left = 140
+
+epoch1 = 1000
+batch_size1 = 4
+st1 = '(1)'
+
+epoch2 = 1000
+batch_size2 = 4
+st2 = '(2)'
+
+CL_model = keras.models.load_model('C:\\Users\\user\\.spyder-py3\/CNN_LSTM/Model/CNN_LSTM/CNN_LSTM_model_%d_EP%d_BS%d%s.h5'%(num, epoch1, batch_size1, st1))
+L_model = keras.models.load_model('C:/Users/user/.spyder-py3/CNN_LSTM/Model/LSTM/best/%d_EP%d_BS%d%s_best_333-0.00314.h5'%(num, epoch2, batch_size2, st2))
+
+
+Final_output = np.zeros((num, 310, 1000))
+lstm_output = np.zeros((num, 310, 1000))
+
+for i in range(num):
+    
+    ### CNN-LSTM Output ###
+    
+    CL_input = batch_train_data1[i].copy()
+    CL_input = np.reshape(CL_input, (1, 310, 1000, 4))
+    
+    CL_output = CL_model.predict(CL_input)
+    
+    ### LSTM Output ###
+    
+    LSTM_input = batch_train_data2[i].copy()
+    
+    if i < data_left:
+        turning_index = np.where(LSTM_input[:, 1] > 656)
+        bb = np.asarray(turning_index)
+        
+    else:
+        turning_index = np.where(LSTM_input[:, 1] > 634)
+        bb = np.asarray(turning_index)
+    
+    LSTM_input[bb[0, 0]:200, :] = 0
+    LSTM_input[:, 0:2] = LSTM_input[:, 0:2] / 500
+    LSTM_input = np.reshape(LSTM_input, (1,200,4))
+    c = LSTM_input.copy()
+    
+    for time_step in range(17):
+        LSTM_output = L_model.predict(c)
+        
+        LSTM_output = np.reshape(LSTM_output, (200,4))
+        c = np.reshape(c, (200,4))
+        
+        c[bb[0, 0] -1 + time_step] = LSTM_output[bb[0, 0] - 1 + (time_step - 1)]
+        c = np.reshape(c, (1,200,4))
+    
+    c[0, :, 0:2] = c[0, :, 0:2] * 500
+    
+    for k in range(bb[0,0], (bb[0, 0] + time_step ) ):
+
+        CL_output[0, int(np.around(c[0, k, 0])), int(np.around(c[0, k, 1])) ] += np.max(CL_output) / 2
+        lstm_output[i, int(np.around(c[0, k, 0])), int(np.around(c[0, k, 1]))] = 255
+
+    Final_output[i] = CL_output.copy()
+    
+    print(i)
+    # Final_output[i] = np.where(Final_output[i] < (np.max(Final_output[i])/ 3), 0, 255)
+    
+    
+    
+np.save('./CNN_LSTM/data/train/{}'.format(file_name), Final_output)
+
+np.save('./CNN_LSTM/data/train/show', lstm_output)
+
+t.toc()
+
+
+
+# map_img = data_batch[:, :, :, 0].copy()
+# input_batch = data_batch[:, :, :, 1].copy()
+
+# # index1 = np.where(input_batch[1] == 255)
+
+# # input_view = input_batch[1].copy()
+# # input_view = map_img[1].copy()
+# input_view = map_img[1].copy() + input_batch[1].copy()
+# input_view = np.where(input_view > 255, 255, input_view)
+
+# input_view = input_view.astype('uint8')
+
+# pil_image1 = Image.fromarray(input_view)
+# pil_image1.show()
